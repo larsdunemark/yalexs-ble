@@ -26,6 +26,7 @@ from .const import (
     BatteryState,
     Commands,
     DoorStatus,
+    DoorBellStatus,
     LockInfo,
     LockStatus,
 )
@@ -101,7 +102,7 @@ class Lock:
         keyIndex: int,
         name: str,
         state_callback: Callable[
-            [Iterable[LockStatus | DoorStatus | BatteryState]], None
+            [Iterable[LockStatus | DoorStatus | DoorBellStatus | BatteryState]], None
         ],
         info: LockInfo | None = None,
         disconnect_callback: Callable[[], None] | None = None,
@@ -208,7 +209,9 @@ class Lock:
         """Handle state change."""
         _LOGGER.debug("%s: State changed: %s", self.name, state.hex())
         if state[0] == 0xBB:
-            if state[4] == 0x02:  # lock only
+            if state[3] == 0x3c or state[3] == 0x3e:
+                self._state_callback(self._parse_doorbell_status(0x01))
+            elif state[4] == 0x02:  # lock only
                 lock_status = state[0x08]
                 self._state_callback(
                     [VALUE_TO_LOCK_STATUS.get(lock_status, LockStatus.UNKNOWN)]
@@ -333,10 +336,10 @@ class Lock:
 
     def _parse_lock_and_door_state(
         self, response: bytes
-    ) -> tuple[LockStatus, DoorStatus]:
+    ) -> tuple[LockStatus, DoorStatus, DoorBellStatus]:
         """Parse the lock and door state from the response."""
         return self._parse_lock_status(response[0x08]), self._parse_door_status(
-            response[0x09]
+            response[0x09], self._parse_doorbell_status(0x00)
         )
 
     def _parse_lock_status(self, lock_status: int) -> LockStatus:
@@ -356,6 +359,15 @@ class Lock:
                 "%s: Unrecognized door_status_str code: %s", self.name, hex(door_status)
             )
         return door_status_enum
+
+    def _parse_doorbell_status(self, door_status: int) -> DoorBellStatus:
+        """Parse the door bell state from the response."""
+        doorbell_status_enum = VALUE_TO_DOORBELL_STATUS.get(doorbell_status, DoorBellStatus.UNKNOWN)
+        if doorbell_status_enum == DoorBellStatus.UNKNOWN:
+            _LOGGER.debug(
+                "%s: Unrecognized doorbell_status_str code: %s", self.name, hex(doorbell_status)
+            )
+        return doorbell_status_enum
 
     @raise_if_not_connected
     async def lock_status(self) -> LockStatus:

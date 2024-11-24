@@ -29,6 +29,7 @@ from .const import (
     BatteryState,
     ConnectionInfo,
     DoorStatus,
+    DoorBellStatus,
     LockInfo,
     LockState,
     LockStatus,
@@ -275,7 +276,7 @@ class PushLock:
         self._client: Lock | None = None
         self._connect_lock = asyncio.Lock()
         self._seen_this_session: set[
-            type[LockStatus] | type[DoorStatus] | type[BatteryState] | type[AuthState]
+            type[LockStatus] | type[DoorStatus] | type[DoorBellStatus] | type[BatteryState] | type[AuthState]
         ] = set()
         self._disconnect_timer: asyncio.TimerHandle | None = None
         self._keep_alive_timer: asyncio.TimerHandle | None = None
@@ -316,6 +317,11 @@ class PushLock:
     def door_status(self) -> DoorStatus:
         """Return the current door status."""
         return self._lock_state.door if self._lock_state else DoorStatus.UNKNOWN
+
+    @property
+    def doorbell_status(self) -> DoorBellStatus:
+        """Return the current doorbell status."""
+        return self._lock_state.doorbell if self._lock_state else DoorBellStatus.UNKNOWN
 
     @property
     def lock_status(self) -> LockStatus:
@@ -633,7 +639,7 @@ class PushLock:
         self._reschedule_next_keep_alive()
 
     def _state_callback(
-        self, states: Iterable[LockStatus | DoorStatus | BatteryState]
+        self, states: Iterable[LockStatus | DoorStatus | DoorBellStatus | BatteryState]
     ) -> None:
         """Handle state change."""
         self._reset_disconnect_timer()
@@ -642,11 +648,11 @@ class PushLock:
     def _get_current_state(self) -> LockState:
         """Get the current state of the lock."""
         return self._lock_state or LockState(
-            self.lock_status, self.door_status, self.battery, self.auth
+            self.lock_status, self.door_status, self.doorbell_status, self.battery, self.auth
         )
 
     def _update_any_state(
-        self, states: Iterable[LockStatus | DoorStatus | BatteryState | AuthState]
+        self, states: Iterable[LockStatus | DoorStatus | DoorBellStatus | BatteryState | AuthState]
     ) -> None:
         _LOGGER.debug("%s: State changed: %s", self.name, states)
         lock_state = self._get_current_state()
@@ -664,6 +670,9 @@ class PushLock:
             elif isinstance(state, DoorStatus):
                 if lock_state.door != state:
                     changes["door"] = state
+            elif isinstance(state, DoorBellStatus):
+                if lock_state.doorbell != state:
+                    changes["doorbell"] = state
             elif isinstance(state, BatteryState):
                 if state.voltage <= 3.0:
                     _LOGGER.debug(

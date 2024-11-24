@@ -3,6 +3,7 @@ from bleak_retry_connector import close_stale_connections_by_address
 from .const import (
     ConnectionInfo,
     DoorStatus,
+    DoorBellStatus,
     LockInfo,
     LockState,
     LockStatus,
@@ -27,6 +28,7 @@ __all__ = [
     "ConnectionInfo",
     "DisconnectedError",
     "DoorStatus",
+    "DoorBellStatus",
     "Lock",
     "LockInfo",
     "LockState",

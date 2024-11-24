@@ -52,6 +52,13 @@ class DoorStatus(Enum):
 
 VALUE_TO_DOOR_STATUS = {status.value: status for status in DoorStatus}
 
+class DoorBellStatus(Enum):
+    OFF = 0x00
+    RING = 0x01
+    UNKNOWN = 0x02
+
+
+VALUE_TO_DOORBELL_STATUS = {status.value: status for status in DoorBellStatus}
 
 @dataclass
 class BatteryState:
@@ -63,6 +70,7 @@ class BatteryState:
 class LockState:
     lock: LockStatus
     door: DoorStatus
+    doorbell: DoorBellStatus | None
     battery: BatteryState | None
     auth: AuthState | None
 
